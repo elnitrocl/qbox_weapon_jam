@@ -1,46 +1,43 @@
--- Variables to track weapon malfunction / Variables para rastrear trabado de armas
-local Locale = Locales['es'] -- Change to 'en' for English / Cambiar a 'en' para inglés
-local isWeaponJammed = false
-local jammedWeapon = nil
-local keyPressCount = 0 -- Counter for key presses / Contador de pulsaciones
-Locale = Locales or {}
--- Function to calculate jam chance / Función para calcular probabilidad de trabado
-local function CalculateJamChance(baseChance, durability)
-    return baseChance + ((100 - durability) * Config.DeteriorationMultiplier / 10)
-end
+-- Variables para rastrear trabado de armas / Variables to track weapon malfunction
+local Locale = Locales['es'] -- Cambiar a 'en' para inglés / Change to 'en' for English
+local isWeaponJammed = false -- Estado de si el arma está trabada / State if the weapon is jammed
+local jammedWeapon = nil -- Nombre del arma trabada / Name of the jammed weapon
+local keyPressCount = 0 -- Contador de pulsaciones / Counter for key presses
+Locale = Locales or {} -- Inicialización de Locales / Initialize Locales
 
+-- Función para calcular probabilidad de trabado / Function to calculate jam probability
 local function CalculateJamChance(baseChance, durability)
     if Config.TestMode then
-        return 100 -- Si está en modo de prueba, fuerza el trabado al 100%
+        return 100 -- Si está en modo de prueba, fuerza el trabado al 100% / If in test mode, force 100% jam probability
     end
-    return baseChance + ((100 - durability) * Config.DeteriorationMultiplier / 10)
+    return baseChance + ((100 - durability) * Config.DeteriorationMultiplier / 10) -- Fórmula para calcular el trabado / Formula to calculate jamming
 end
 
--- Thread to detect shooting and apply jams / Hilo para detectar disparos y aplicar trabado
+-- Hilo para detectar disparos y aplicar trabado / Thread to detect shooting and apply jams
 CreateThread(function()
     while true do
         Wait(0)
         if isWeaponJammed then
-            DisablePlayerFiring(PlayerPedId(), true) -- Disable firing if the weapon is jammed / Deshabilitar disparos si el arma está trabada
+            DisablePlayerFiring(PlayerPedId(), true) -- Deshabilitar disparos si el arma está trabada / Disable firing if the weapon is jammed
         else
             local currentWeapon = exports.ox_inventory:getCurrentWeapon()
             if currentWeapon then
                 local ped = PlayerPedId()
                 if IsPedShooting(ped) then
-                    local weaponName = currentWeapon.name -- Nombre del arma en ox_inventory (e.g., weapon_combatpistol)
-                    local durability = currentWeapon.metadata.durability or 100 -- Deterioro del arma
+                    local weaponName = currentWeapon.name -- Nombre del arma en ox_inventory / Weapon name in ox_inventory
+                    local durability = currentWeapon.metadata.durability or 100 -- Deterioro del arma / Weapon durability
 
                     local baseChance = Config.WeaponJamChances[weaponName] or Config.WeaponJamChances['default']
                     local jamChance = CalculateJamChance(baseChance, durability)
 
-                    -- Check if the weapon jams / Verificar si el arma se traba
+                    -- Verificar si el arma se traba / Check if the weapon jams
                     if math.random(1, 100) <= jamChance then
                         isWeaponJammed = true
                         jammedWeapon = weaponName
                         TriggerEvent('qbox-weaponjam:weaponJammed', weaponName)
                     end
 
-                    -- Notify if the weapon is deteriorating / Notificar si el arma se está deteriorando
+                    -- Notificar si el arma se está deteriorando / Notify if the weapon is deteriorating
                     if durability <= 25 then
                         lib.notify({
                             id = 'deterioration_warning',
@@ -62,9 +59,9 @@ CreateThread(function()
             end
         end
     end
-end)
+end) -- Cierre del primer CreateThread / Closing the first CreateThread
 
--- Event for weapon jam / Evento para trabado de armas
+-- Evento para trabado de armas / Event for weapon jam
 RegisterNetEvent('qbox-weaponjam:weaponJammed', function(weaponName)
     if isWeaponJammed then
         lib.notify({
@@ -83,22 +80,22 @@ RegisterNetEvent('qbox-weaponjam:weaponJammed', function(weaponName)
             iconColor = '#ffcc00'
         })
     end
-end)
+end) -- Cierre del evento / Closing the event
 
--- Thread to handle unjamming weapons / Hilo para manejar destrabe de armas
+-- Hilo para manejar destrabe de armas / Thread to handle unjamming weapons
 CreateThread(function()
     while true do
         Wait(0)
         if isWeaponJammed and jammedWeapon then
-            if IsControlJustPressed(0, 38) then -- E key / Tecla E
+            if IsControlJustPressed(0, 38) then -- Tecla E / Key E
                 local ped = PlayerPedId()
-                keyPressCount = keyPressCount + 1 -- Increment key press count / Incrementar contador de pulsaciones
+                keyPressCount = keyPressCount + 1 -- Incrementar contador de pulsaciones / Increment key press count
 
-                -- Show notification with progress / Mostrar notificación de progreso
+                -- Mostrar notificación de progreso / Show notification with progress
                 lib.notify({
                     id = 'unjam_progress',
                     title = Locale['notification_title'],
-                    description = Locale['unjamming_progress'], -- Usar el mensaje desde locales
+                    description = Locale['unjamming_progress'], -- Usar el mensaje desde locales / Use the message from locales
                     position = 'top-right',
                     style = {
                         backgroundColor = '#1e90ff',
@@ -111,7 +108,7 @@ CreateThread(function()
                     iconColor = '#ffffff'
                 })
 
-                -- Play animation / Reproducir animación
+                -- Reproducir animación / Play animation
                 RequestAnimDict("mp_arresting")
                 while not HasAnimDictLoaded("mp_arresting") do
                     Wait(0)
@@ -120,21 +117,21 @@ CreateThread(function()
                     TaskPlayAnim(ped, "mp_arresting", "a_uncuff", 8.0, -8.0, -1, 49, 0, false, false, false)
                 end
 
-                -- If enough presses, unjam the weapon / Si hay suficientes pulsaciones, destraba el arma
+                -- Si hay suficientes pulsaciones, destraba el arma / If enough presses, unjam the weapon
                 if keyPressCount >= Config.RequiredKeyPresses then
                     isWeaponJammed = false
                     jammedWeapon = nil
                     keyPressCount = 0
                     ClearPedTasks(ped)
 
-                    -- Success notification / Notificación de éxito
+                    -- Notificación de éxito / Success notification
                     lib.notify({
                         id = 'weapon_unjammed',
                         title = Locale['notification_title'],
                         description = Locale['weapon_unjammed'],
                         position = 'top-right',
                         style = {
-                            backgroundColor = '#006400', -- Dark green / Verde oscuro
+                            backgroundColor = '#006400', -- Verde oscuro / Dark green
                             color = '#ffffff',
                             ['.description'] = {
                                 color = '#dcdcdc'
@@ -147,4 +144,4 @@ CreateThread(function()
             end
         end
     end
-end)
+end) -- Cierre del segundo CreateThread / Closing the second CreateThread
