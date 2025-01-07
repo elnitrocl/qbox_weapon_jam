@@ -1,7 +1,7 @@
 Config = {}
 
 -- Enable test mode to increase jam probabilities for all weapons / Habilitar modo de prueba para aumentar las probabilidades de trabado
-Config.TestMode = true -- Cambiar a false para deshabilitar / Set to false to disable
+Config.TestMode = false -- Cambiar a false para deshabilitar / Set to false to disable
 
 -- Probabilidades base de trabado según arma específica / Base jam probabilities by specific weapon
 Config.WeaponJamChances = {
